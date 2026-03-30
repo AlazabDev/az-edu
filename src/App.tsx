@@ -8,8 +8,18 @@ import Dashboard from "./pages/Dashboard";
 import InboxPage from "./pages/InboxPage";
 import ContactsPage from "./pages/ContactsPage";
 import MediaPage from "./pages/MediaPage";
+import ConversationsPage from "./pages/ConversationsPage";
+import TemplatesPage from "./pages/TemplatesPage";
+import FlowsPage from "./pages/FlowsPage";
+import PhonesPage from "./pages/PhonesPage";
+import WebhooksPage from "./pages/WebhooksPage";
+import ApiKeysPage from "./pages/ApiKeysPage";
+import MessagesPage from "./pages/MessagesPage";
+import AddNumberPage from "./pages/AddNumberPage";
+import DocsPage from "./pages/DocsPage";
+import HelpPage from "./pages/HelpPage";
+import TeamInboxPage from "./pages/TeamInboxPage";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,6 +38,17 @@ const App = () => (
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/media" element={<MediaPage />} />
+                  <Route path="/conversations" element={<ConversationsPage />} />
+                  <Route path="/templates" element={<TemplatesPage />} />
+                  <Route path="/flows" element={<FlowsPage />} />
+                  <Route path="/phones" element={<PhonesPage />} />
+                  <Route path="/webhooks" element={<WebhooksPage />} />
+                  <Route path="/api-keys" element={<ApiKeysPage />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/add-number" element={<AddNumberPage />} />
+                  <Route path="/docs" element={<DocsPage />} />
+                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="/team-inbox" element={<TeamInboxPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppLayout>
