@@ -1,4 +1,4 @@
-import { Search, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Search, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Phone } from "lucide-react";
 import { useState } from "react";
 
 const contactsData = [
