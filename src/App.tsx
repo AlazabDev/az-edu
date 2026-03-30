@@ -38,6 +38,17 @@ const App = () => (
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/media" element={<MediaPage />} />
+                  <Route path="/conversations" element={<ConversationsPage />} />
+                  <Route path="/templates" element={<TemplatesPage />} />
+                  <Route path="/flows" element={<FlowsPage />} />
+                  <Route path="/phones" element={<PhonesPage />} />
+                  <Route path="/webhooks" element={<WebhooksPage />} />
+                  <Route path="/api-keys" element={<ApiKeysPage />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/add-number" element={<AddNumberPage />} />
+                  <Route path="/docs" element={<DocsPage />} />
+                  <Route path="/help" element={<HelpPage />} />
+                  <Route path="/team-inbox" element={<TeamInboxPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </AppLayout>
