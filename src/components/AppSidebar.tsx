@@ -16,8 +16,10 @@ import {
   ChevronDown,
   ChevronLeft,
   Database,
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const navSections = [
   {
@@ -66,7 +68,9 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const initial = (user?.email || "?").charAt(0).toUpperCase();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -155,16 +159,17 @@ export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarPr
           </Link>
         ))}
         {/* User */}
-        <div
-          className={`flex items-center gap-3 px-4 py-3 border-t border-border mt-2 ${
-            collapsed ? "justify-center" : ""
-          }`}
-        >
+        <div className={`flex items-center gap-3 px-4 py-3 border-t border-border mt-2 ${collapsed ? "justify-center" : ""}`}>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0">
-            م
+            {initial}
           </div>
           {!collapsed && (
-            <span className="text-sm text-foreground truncate">admin@example.com</span>
+            <>
+              <span className="text-xs text-foreground truncate flex-1">{user?.email}</span>
+              <button onClick={signOut} title="تسجيل الخروج" className="text-muted-foreground hover:text-destructive">
+                <LogOut size={16} />
+              </button>
+            </>
           )}
         </div>
       </div>
