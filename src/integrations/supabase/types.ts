@@ -14,115 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      contacts: {
-        Row: {
-          created_at: string
-          display_name: string | null
-          id: string
-          phone: string
-          updated_at: string
-          user_id: string
-          whatsapp_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          phone: string
-          updated_at?: string
-          user_id: string
-          whatsapp_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          phone?: string
-          updated_at?: string
-          user_id?: string
-          whatsapp_id?: string | null
-        }
-        Relationships: []
-      }
-      conversations: {
-        Row: {
-          contact_id: string
-          created_at: string
-          id: string
-          last_message_at: string | null
-          status: Database["public"]["Enums"]["conversation_status"]
-          unread_count: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          contact_id: string
-          created_at?: string
-          id?: string
-          last_message_at?: string | null
-          status?: Database["public"]["Enums"]["conversation_status"]
-          unread_count?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          contact_id?: string
-          created_at?: string
-          id?: string
-          last_message_at?: string | null
-          status?: Database["public"]["Enums"]["conversation_status"]
-          unread_count?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      messages: {
-        Row: {
-          content: string
-          conversation_id: string
-          created_at: string
-          direction: Database["public"]["Enums"]["message_direction"]
-          id: string
-          status: Database["public"]["Enums"]["message_status"]
-          user_id: string
-        }
-        Insert: {
-          content: string
-          conversation_id: string
-          created_at?: string
-          direction: Database["public"]["Enums"]["message_direction"]
-          id?: string
-          status?: Database["public"]["Enums"]["message_status"]
-          user_id: string
-        }
-        Update: {
-          content?: string
-          conversation_id?: string
-          created_at?: string
-          direction?: Database["public"]["Enums"]["message_direction"]
-          id?: string
-          status?: Database["public"]["Enums"]["message_status"]
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
@@ -131,9 +23,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      conversation_status: "active" | "pending" | "closed"
-      message_direction: "in" | "out"
-      message_status: "sent" | "delivered" | "read" | "failed"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -149,12 +39,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -178,11 +68,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -203,11 +93,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -228,11 +118,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -245,11 +135,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -260,10 +150,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      conversation_status: ["active", "pending", "closed"],
-      message_direction: ["in", "out"],
-      message_status: ["sent", "delivered", "read", "failed"],
-    },
+    Enums: {},
   },
 } as const
