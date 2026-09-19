@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          account_id: string | null
           created_at: string
           display_name: string | null
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           whatsapp_id: string | null
         }
         Insert: {
+          account_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
@@ -34,6 +36,7 @@ export type Database = {
           whatsapp_id?: string | null
         }
         Update: {
+          account_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
@@ -42,10 +45,19 @@ export type Database = {
           user_id?: string
           whatsapp_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
+          account_id: string | null
           contact_id: string
           created_at: string
           id: string
@@ -56,6 +68,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           contact_id: string
           created_at?: string
           id?: string
@@ -66,6 +79,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           contact_id?: string
           created_at?: string
           id?: string
@@ -77,6 +91,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "conversations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "conversations_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -85,8 +106,88 @@ export type Database = {
           },
         ]
       }
+      media_files: {
+        Row: {
+          account_id: string | null
+          contact_id: string | null
+          created_at: string
+          file_name: string
+          id: string
+          media_type: string | null
+          message_id: string | null
+          mime_type: string | null
+          received_at: string
+          size_bytes: number | null
+          status: string
+          storage_key: string | null
+          storage_url: string | null
+          updated_at: string
+          user_id: string
+          wa_media_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          file_name: string
+          id?: string
+          media_type?: string | null
+          message_id?: string | null
+          mime_type?: string | null
+          received_at?: string
+          size_bytes?: number | null
+          status?: string
+          storage_key?: string | null
+          storage_url?: string | null
+          updated_at?: string
+          user_id: string
+          wa_media_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          file_name?: string
+          id?: string
+          media_type?: string | null
+          message_id?: string | null
+          mime_type?: string | null
+          received_at?: string
+          size_bytes?: number | null
+          status?: string
+          storage_key?: string | null
+          storage_url?: string | null
+          updated_at?: string
+          user_id?: string
+          wa_media_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_files_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_files_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_files_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
+          account_id: string | null
           content: string | null
           conversation_id: string
           created_at: string
@@ -97,8 +198,10 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          wa_message_id: string | null
         }
         Insert: {
+          account_id?: string | null
           content?: string | null
           conversation_id: string
           created_at?: string
@@ -109,8 +212,10 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          wa_message_id?: string | null
         }
         Update: {
+          account_id?: string | null
           content?: string | null
           conversation_id?: string
           created_at?: string
@@ -121,8 +226,16 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          wa_message_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_conversation_id_fkey"
             columns: ["conversation_id"]
@@ -174,6 +287,74 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_account_secrets: {
+        Row: {
+          access_token: string
+          account_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          account_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          account_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_account_secrets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_accounts: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_default: boolean
+          phone_number: string | null
+          phone_number_id: string
+          status: string
+          updated_at: string
+          user_id: string
+          waba_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_default?: boolean
+          phone_number?: string | null
+          phone_number_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          waba_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_default?: boolean
+          phone_number?: string | null
+          phone_number_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          waba_id?: string | null
         }
         Relationships: []
       }
