@@ -1,73 +1,51 @@
-// daftra-client.ts
-// التعامل مع استدعاءات Daftra API ومعالجة المصادقة والـ Subdomain
+import type { Operation, Dict, ToolResult } from "./types.ts";
+import { isObject, toolResult } from "./types.ts";
 
-export interface DaftraConfig {
-  subdomain: string;
-  apiKey: string;
-  readOnlyDefault?: boolean;
-}
-
-export function getDaftraConfig(): DaftraConfig {
-  const subdomain = Deno.env.get("DAFTRA_SUBDOMAIN") || "";
-  const apiKey = Deno.env.get("DAFTRA_API_KEY") || "";
-  const readOnlyDefault = (Deno.env.get("DAFTRA_READONLY") ?? "true") === "true";
-
-  if (!subdomain || !apiKey) {
-    throw new Error("Missing DAFTRA_SUBDOMAIN or DAFTRA_API_KEY environment variables.");
+function buildUrl(op:Operation, args:Dict):URL {
+  const base = Deno.env.get("DAFTRA_BASE_URL") || `https://${Deno.env.get("DAFTRA_SUBDOMAIN") || ""}.daftra.com`;
+  const host = new URL(base).hostname;
+  if (!/^[a-z0-9-]+\.daftra\.com$/i.test(host)) throw new Error("DAFTRA_BASE_URL must be a tenant on daftra.com");
+  const pathArgs = isObject(args.path_params) ? args.path_params : {};
+  let path = op.p.replaceAll("{format}",".json");
+  for (const match of path.matchAll(/\{([^}]+)\}/g)) {
+    const v = pathArgs[match[1]] ?? pathArgs[match[1].toLowerCase()];
+    if ((typeof v !== "string" && typeof v !== "number") || v === "") throw new Error(`Missing or invalid path parameter: ${match[1]}`);
+    path = path.replace(match[0],encodeURIComponent(String(v)));
   }
-
-  return { subdomain, apiKey, readOnlyDefault };
+  if (!path.startsWith("/") || path.includes("..") || path.includes("{")) throw new Error("Invalid operation path");
+  const url = new URL(path.startsWith("/v2/") ? path : `/api2${path}`,`https://${host}`);
+  const query = isObject(args.query) ? args.query : {};
+  for (const [key,value] of Object.entries(query)) {
+    if (value === null || value === undefined) continue;
+    if (Array.isArray(value)) value.forEach(x=>url.searchParams.append(key+"[]",String(x)));
+    else if (["string","number","boolean"].includes(typeof value)) url.searchParams.set(key,String(value));
+    else throw new Error(`Invalid query parameter: ${key}`);
+  }
+  return url;
 }
-
-export async function callDaftraApi(
-  method: "GET" | "POST" | "PUT" | "DELETE",
-  endpoint: string,
-  data?: Record<string, unknown>,
-  queryParams?: Record<string, string | number>
-) {
-  const { subdomain, apiKey } = getDaftraConfig();
-
-  // إعداد المسار والرابط الأساسي
-  const cleanSubdomain = subdomain.replace(/\.daftra\.com$/, "").replace(/^https?:\/\//, "");
-  const baseUrl = `https://${cleanSubdomain}.daftra.com/v2/api/entity`;
-
-  let url = `${baseUrl}/${endpoint.replace(/^\//, "")}`;
-
-  if (queryParams && Object.keys(queryParams).length > 0) {
-    const searchParams = new URLSearchParams();
-    for (const [k, v] of Object.entries(queryParams)) {
-      if (v !== undefined && v !== null) {
-        searchParams.append(k, String(v));
-      }
+export async function callDaftra(op:Operation,args:Dict):Promise<ToolResult> {
+  const url=buildUrl(op,args);
+  const mode=(Deno.env.get("DAFTRA_AUTH_MODE")||"apikey").toLowerCase();
+  const key=mode==="bearer" ? Deno.env.get("DAFTRA_ACCESS_TOKEN") : Deno.env.get("DAFTRA_API_KEY");
+  if (!key) return toolResult(`Missing Daftra credential for ${mode}`,true);
+  const headers:Record<string,string>={Accept:"application/json"};
+  if (mode==="bearer") headers.Authorization=`Bearer ${key}`;else headers.APIKEY=key;
+  const timeout=Math.min(120000,Math.max(1000,Number(Deno.env.get("DAFTRA_TIMEOUT")||60)*1000));
+  const method=op.m.toUpperCase();
+  if (!["GET","POST","PUT","PATCH","DELETE"].includes(method)) return toolResult("Unsupported HTTP method",true);
+  const isWrite=method!=="GET" || /update_|convert_to_|activate|\/lock|\/unlock|\/delete\//i.test(op.p);
+  if (isWrite && Deno.env.get("ENABLE_WRITE_TOOLS")!=="true") return toolResult("Write tools disabled by ENABLE_WRITE_TOOLS",true);
+  if (isWrite && Deno.env.get("DRY_RUN")==="true") return toolResult({dry_run:true,method,url:url.toString(),body:args.body},false);
+  try {
+    let payload: string | undefined;
+    if(method!=="GET"&&args.body!==undefined){
+      if(op.p==="/v2/oauth/token") { const form=new URLSearchParams(); for(const [k,v] of Object.entries(args.body as Dict)) form.set(k,String(v)); payload=form.toString(); headers["Content-Type"]="application/x-www-form-urlencoded"; }
+      else { payload=JSON.stringify(args.body); headers["Content-Type"]="application/json"; }
     }
-    url += `?${searchParams.toString()}`;
-  }
-
-  const headers: Record<string, string> = {
-    "APIKEY": apiKey,
-    "Accept": "application/json",
-    "Content-Type": "application/json",
-  };
-
-  const options: RequestInit = {
-    method,
-    headers,
-  };
-
-  if (data && (method === "POST" || method === "PUT")) {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
-  const responseData = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(
-      `Daftra API Error (${response.status}): ${
-        responseData?.message || JSON.stringify(responseData) || response.statusText
-      }`
-    );
-  }
-
-  return responseData;
+    const res=await fetch(url,{method,headers,body:payload,signal:AbortSignal.timeout(timeout),redirect:"error"});
+    const raw=await res.text();let data:unknown=raw;
+    try {data=JSON.parse(raw)}catch{/* text response */}
+    const output=JSON.stringify({status:res.status,data});
+    return toolResult(output.length>100000?{status:res.status,truncated:true,preview:output.slice(0,100000)}:{status:res.status,data},!res.ok);
+  } catch(e) {return toolResult({error:e instanceof Error?e.message:String(e)},true)}
 }

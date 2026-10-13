@@ -1,43 +1,73 @@
-// MCP server (Streamable HTTP, JSON responses) exposing Daftra accounting API operations.
+/**
+ * Alazab Daftra MCP — Supabase Edge Function
+ * Entry point only. Preserves every existing module on disk.
+ * Requires existing: catalog.json, types.ts, modules/registry.ts.
+ * Registry resolves all 301 catalog operations through the 70 generated modules.
+ * Legacy modules are preserved and are NOT overwritten or implicitly substituted.
+ */
 import catalog from "./catalog.json" with { type: "json" };
+import type { Dict, Operation, ToolResult } from "./types.ts";
+import { isObject, toolResult } from "./types.ts";
+import { executeRegistered, validateRegistry } from "./modules/registry.ts";
 
-type Op = { id: string; m: string; p: string; s: string; t: string; params: { n: string; in: string; r: boolean; d: string }[]; body: unknown };
-const OPS = catalog as Op[];
-const BY_ID = new Map(OPS.map((o) => [o.id, o]));
+const OPERATIONS = catalog as Operation[];
+const COVERAGE = validateRegistry(OPERATIONS);
+const BY_ID = new Map<string, Operation>();
+for (const op of OPERATIONS) {
+  if (BY_ID.has(op.id)) throw new Error(`Duplicate operation ID: ${op.id}`);
+  BY_ID.set(op.id, op);
+}
+// Backward-compatible IDs used by the original Supabase MCP.
+for (const op of OPERATIONS) {
+  if (op.id.endsWith("_format")) {
+    const alias = op.id.slice(0, -"_format".length);
+    if (!BY_ID.has(alias)) BY_ID.set(alias, op);
+  }
+}
 
-const cors = {
+const HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-mcp-key, mcp-session-id, mcp-protocol-version",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-mcp-key, mcp-session-id, mcp-protocol-version",
+  "Access-Control-Expose-Headers": "mcp-session-id, mcp-protocol-version",
+  "Cache-Control": "no-store",
 };
+const JSON_HEADERS = { ...HEADERS, "Content-Type": "application/json; charset=utf-8" };
+const response = (value: unknown, status = 200) =>
+  new Response(JSON.stringify(value), { status, headers: JSON_HEADERS });
+const rpcError = (id: unknown, code: number, message: string) =>
+  ({ jsonrpc: "2.0", id, error: { code, message } });
+const rpcResult = (id: unknown, result: unknown) => ({ jsonrpc: "2.0", id, result });
 
 const TOOLS = [
   {
     name: "daftra_list_categories",
-    description: "List Daftra API categories (tags) with the number of operations in each.",
-    inputSchema: { type: "object", properties: {} },
+    description: "List Daftra API categories with operation counts.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "daftra_search_operations",
-    description: "Search the 300+ Daftra API operations (invoices, clients, products, journals, purchases, stock, etc.) by keyword and/or category. Returns operation ids to use with daftra_describe_operation and daftra_call.",
+    description: "Search the Daftra API catalog by words, category and HTTP method.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: "Keyword(s), e.g. 'invoice payment', 'client', 'journal'" },
-        category: { type: "string" },
-        method: { type: "string", enum: ["GET", "POST", "PUT", "DELETE", "PATCH"] },
-        limit: { type: "number", default: 30 },
+        query: { type: "string" }, category: { type: "string" },
+        method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 30 },
       },
     },
   },
   {
     name: "daftra_describe_operation",
-    description: "Get full details of a Daftra operation: path, parameters and request body shape.",
-    inputSchema: { type: "object", properties: { operation_id: { type: "string" } }, required: ["operation_id"] },
+    description: "Get the exact path, parameters and request-body schema for an operation.",
+    inputSchema: {
+      type: "object", properties: { operation_id: { type: "string" } },
+      required: ["operation_id"], additionalProperties: false,
+    },
   },
   {
     name: "daftra_call",
-    description: "Execute a Daftra API operation by id. Provide path params (e.g. {id: 5}), query params (e.g. {page:1, limit:20}) and JSON body for POST/PUT.",
+    description: "Execute a Daftra operation by ID. Non-GET and state-changing GET calls may modify data.",
     inputSchema: {
       type: "object",
       properties: {
@@ -49,106 +79,114 @@ const TOOLS = [
       required: ["operation_id"],
     },
   },
-];
+] as const;
 
-const text = (v: unknown, isError = false) => ({
-  content: [{ type: "text", text: typeof v === "string" ? v : JSON.stringify(v, null, 2) }],
-  isError,
-});
-
-async function callDaftra(op: Op, pathParams: Record<string, unknown> = {}, query: Record<string, unknown> = {}, body?: unknown) {
-  const sub = Deno.env.get("DAFTRA_SUBDOMAIN");
-  const key = Deno.env.get("DAFTRA_API_KEY");
-  if (!sub || !key) return text("Daftra is not configured: DAFTRA_SUBDOMAIN / DAFTRA_API_KEY secrets are missing.", true);
-  let path = op.p.replace("{format}", ".json");
-  for (const m of path.matchAll(/\{([^}]+)\}/g)) {
-    const v = pathParams[m[1]] ?? pathParams[m[1].toLowerCase()];
-    if (v === undefined) return text(`Missing path parameter: ${m[1]}`, true);
-    path = path.replace(m[0], encodeURIComponent(String(v)));
+async function invokeTool(name: string, args: Dict): Promise<ToolResult> {
+  if (name === "daftra_list_categories") {
+    const counts: Record<string, number> = {};
+    for (const op of OPERATIONS) counts[op.t] = (counts[op.t] ?? 0) + 1;
+    return toolResult(counts);
   }
-  const host = sub.includes(".") ? sub : `${sub}.daftra.com`;
-  const url = new URL(`https://${host.replace(/^https?:\/\//, "")}/api2${path}`);
-  for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
-  const res = await fetch(url, {
-    method: op.m,
-    headers: { APIKEY: key, Authorization: `Bearer ${key}`, Accept: "application/json", "Content-Type": "application/json" },
-    body: body && op.m !== "GET" && op.m !== "DELETE" ? JSON.stringify(body) : undefined,
-  });
-  const raw = await res.text();
-  let data: unknown = raw;
-  try { data = JSON.parse(raw); } catch { /* keep text */ }
-  const out = JSON.stringify({ status: res.status, data }, null, 2);
-  return text(out.length > 60000 ? out.slice(0, 60000) + "\n...[truncated, use page/limit]" : out, !res.ok);
-}
-
-async function runTool(name: string, a: any) {
-  switch (name) {
-    case "daftra_list_categories": {
-      const c: Record<string, number> = {};
-      for (const o of OPS) c[o.t || "other"] = (c[o.t || "other"] || 0) + 1;
-      return text(c);
-    }
-    case "daftra_search_operations": {
-      const words = String(a?.query || "").toLowerCase().split(/\s+/).filter(Boolean);
-      const res = OPS.filter((o) => {
-        if (a?.category && o.t.toLowerCase() !== String(a.category).toLowerCase()) return false;
-        if (a?.method && o.m !== a.method) return false;
-        const hay = `${o.id} ${o.p} ${o.s} ${o.t}`.toLowerCase();
-        return words.every((w) => hay.includes(w));
-      }).slice(0, Number(a?.limit) || 30).map((o) => ({ id: o.id, method: o.m, path: o.p, summary: o.s, category: o.t }));
-      return text(res.length ? res : "No operations found.");
-    }
-    case "daftra_describe_operation": {
-      const op = BY_ID.get(a?.operation_id);
-      return op ? text(op) : text("Unknown operation_id. Use daftra_search_operations.", true);
-    }
-    case "daftra_call": {
-      const op = BY_ID.get(a?.operation_id);
-      if (!op) return text("Unknown operation_id. Use daftra_search_operations.", true);
-      return await callDaftra(op, a.path_params, a.query, a.body);
+  if (name === "daftra_search_operations") {
+    const words = typeof args.query === "string" ? args.query.toLowerCase().trim().split(/\s+/).filter(Boolean) : [];
+    const limitRaw = Number(args.limit ?? 30);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(100, Math.trunc(limitRaw))) : 30;
+    const results = OPERATIONS.filter((op) =>
+      (!args.category || op.t.toLowerCase() === String(args.category).toLowerCase()) &&
+      (!args.method || op.m === args.method) &&
+      words.every((word) => `${op.id} ${op.p} ${op.s} ${op.t}`.toLowerCase().includes(word))
+    ).slice(0, limit).map((op) => ({
+      id: op.id, method: op.m, path: op.p, summary: op.s, category: op.t,
+    }));
+    return toolResult(results);
+  }
+  if (name === "daftra_describe_operation") {
+    if (typeof args.operation_id !== "string" || !args.operation_id)
+      return toolResult("operation_id must be a nonempty string", true);
+    const op = BY_ID.get(args.operation_id);
+    return op ? toolResult(op) : toolResult("Unknown operation_id", true);
+  }
+  if (name === "daftra_call") {
+    if (typeof args.operation_id !== "string" || !args.operation_id)
+      return toolResult("operation_id must be a nonempty string", true);
+    const op = BY_ID.get(args.operation_id);
+    if (!op) return toolResult("Unknown operation_id", true);
+    try {
+      return await executeRegistered(op, args);
+    } catch (error) {
+      return toolResult({ error: error instanceof Error ? error.message : String(error) }, true);
     }
   }
-  return text(`Unknown tool ${name}`, true);
+  return toolResult(`Unknown tool: ${name}`, true);
 }
 
-async function handle(msg: any) {
-  const { id, method, params } = msg;
-  if (id === undefined) return null; // notification
-  const ok = (result: unknown) => ({ jsonrpc: "2.0", id, result });
-  switch (method) {
-    case "initialize":
-      return ok({
-        protocolVersion: params?.protocolVersion || "2025-03-26",
-        capabilities: { tools: {} },
-        serverInfo: { name: "daftra-mcp", version: "1.0.0" },
+async function handle(message: unknown): Promise<unknown | null> {
+  if (!isObject(message) || message.jsonrpc !== "2.0" || typeof message.method !== "string")
+    return rpcError(isObject(message) && message.id !== undefined ? message.id : null, -32600, "Invalid Request");
+  // MCP notifications have no id; do not reply to them.
+  if (message.id === undefined) return null;
+  const id = message.id;
+  if (!(typeof id === "string" || typeof id === "number" || id === null))
+    return rpcError(null, -32600, "Invalid Request ID");
+  switch (message.method) {
+    case "initialize": {
+      const requested = isObject(message.params) ? message.params.protocolVersion : undefined;
+      const supported = ["2025-03-26", "2024-11-05"];
+      const version = typeof requested === "string" && supported.includes(requested) ? requested : "2025-03-26";
+      return rpcResult(id, {
+        protocolVersion: version,
+        capabilities: { tools: { listChanged: false } },
+        serverInfo: { name: "daftra-mcp", version: "3.1.0" },
       });
-    case "ping": return ok({});
-    case "tools/list": return ok({ tools: TOOLS });
-    case "tools/call":
-      try { return ok(await runTool(params?.name, params?.arguments || {})); }
-      catch (e) { return ok(text(`Error: ${(e as Error).message}`, true)); }
-    default:
-      return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } };
+    }
+    case "ping": return rpcResult(id, {});
+    case "tools/list": return rpcResult(id, { tools: TOOLS });
+    case "tools/call": {
+      if (!isObject(message.params) || typeof message.params.name !== "string")
+        return rpcError(id, -32602, "Expected params.name");
+      if (message.params.arguments !== undefined && !isObject(message.params.arguments))
+        return rpcError(id, -32602, "Expected params.arguments to be an object");
+      const name = message.params.name;
+      if (!TOOLS.some((tool) => tool.name === name))
+        return rpcError(id, -32602, `Unknown tool: ${name}`);
+      return rpcResult(id, await invokeTool(name, isObject(message.params.arguments) ? message.params.arguments : {}));
+    }
+    default: return rpcError(id, -32601, `Method not found: ${message.method}`);
   }
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  const access = Deno.env.get("MCP_ACCESS_KEY");
-  const url = new URL(req.url);
-  const given = req.headers.get("x-mcp-key") || url.searchParams.get("key") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!access || given !== access) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
+Deno.serve(async (request: Request): Promise<Response> => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
+  const expected = Deno.env.get("MCP_ACCESS_KEY");
+  const headerKey = request.headers.get("x-mcp-key");
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!expected || (headerKey !== expected && bearer !== expected))
+    return response({ error: "Unauthorized" }, 401);
+
+  if (request.method === "GET") {
+    return response({
+      name: "daftra-mcp", version: "3.1.0", operations: OPERATIONS.length,
+      registeredModules: COVERAGE.modules, registeredOperations: COVERAGE.operations,
+      tools: TOOLS.map((tool) => tool.name),
+    });
   }
-  if (req.method === "GET") {
-    return new Response(JSON.stringify({ name: "daftra-mcp", operations: OPS.length }), { headers: { ...cors, "Content-Type": "application/json" } });
+  if (request.method !== "POST") return response({ error: "Method Not Allowed" }, 405);
+
+  let payload: unknown;
+  try { payload = await request.json(); }
+  catch { return response(rpcError(null, -32700, "Parse error"), 400); }
+
+  try {
+    if (Array.isArray(payload) && payload.length === 0)
+      return response(rpcError(null, -32600, "Empty batch"), 400);
+    const output = Array.isArray(payload)
+      ? (await Promise.all(payload.map(handle))).filter((item) => item !== null)
+      : await handle(payload);
+    if (output === null || (Array.isArray(output) && output.length === 0))
+      return new Response(null, { status: 202, headers: HEADERS });
+    return response(output);
+  } catch (error) {
+    console.error("MCP handler failure:", error instanceof Error ? error.message : String(error));
+    return response(rpcError(null, -32603, "Internal error"), 500);
   }
-  let body: any;
-  try { body = await req.json(); } catch {
-    return new Response(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
-  }
-  const results = Array.isArray(body) ? (await Promise.all(body.map(handle))).filter(Boolean) : await handle(body);
-  if (!results || (Array.isArray(results) && !results.length)) return new Response(null, { status: 202, headers: cors });
-  return new Response(JSON.stringify(results), { headers: { ...cors, "Content-Type": "application/json" } });
 });
