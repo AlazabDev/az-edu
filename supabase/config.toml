@@ -1,1 +1,4 @@
 project_id = "vlahgxkfpzappxtiwhvd"
+
+[functions.daftra-mcp]
+verify_jwt = false
