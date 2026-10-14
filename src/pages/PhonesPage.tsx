@@ -1,58 +1,6 @@
-import { Phone, Plus, Settings, MoreVertical } from "lucide-react";
-
-const phones = [
-  { id: 1, number: "+966501234567", name: "الرقم الرئيسي", status: "متصل", messages: 1250, quality: "عالية" },
-  { id: 2, number: "+966509876543", name: "رقم الدعم", status: "متصل", messages: 890, quality: "عالية" },
-  { id: 3, number: "+966507654321", name: "رقم التسويق", status: "غير متصل", messages: 340, quality: "متوسطة" },
-];
-
-export default function PhonesPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">أرقام الهواتف</h1>
-        <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm hover:bg-primary/90 transition-colors">
-          <Plus size={16} />
-          إضافة رقم
-        </button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {phones.map((phone) => (
-          <div key={phone.id} className="bg-card rounded-xl border border-border p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Phone size={20} className="text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">{phone.name}</h3>
-                  <p className="text-sm text-muted-foreground font-mono" dir="ltr">{phone.number}</p>
-                </div>
-              </div>
-              <button className="p-1 rounded hover:bg-muted"><MoreVertical size={16} className="text-muted-foreground" /></button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">الحالة</span>
-                <span className={phone.status === "متصل" ? "text-primary" : "text-destructive"}>{phone.status}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">الرسائل المرسلة</span>
-                <span className="text-foreground">{phone.messages}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">جودة الرقم</span>
-                <span className="text-foreground">{phone.quality}</span>
-              </div>
-            </div>
-            <button className="w-full mt-4 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
-              <Settings size={14} />
-              إعدادات
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { Link } from "react-router-dom";
+import { Phone, Plus, Pencil } from "lucide-react";
+import { useWorkspaceData } from "@/hooks/useWorkspaceData";
+import { PageHeading, DataState } from "@/components/WorkspaceUI";
+import { Button } from "@/components/ui/button";
+export default function PhonesPage(){ const q=useWorkspaceData("whatsapp_accounts");return <><PageHeading title="أرقام واتساب" subtitle={`${q.data?.length??0} رقم مسجل`} action={<Button asChild><Link to="/add-number"><Plus/> إضافة رقم</Link></Button>}/><DataState loading={q.isLoading} error={q.error} empty={!q.data?.length} retry={()=>q.refetch()}><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{q.data?.map(a=><article key={a.id} className="border border-border rounded-lg bg-card p-5"><Phone className="text-primary mb-5"/><h2 className="font-semibold">{a.display_name}</h2><p dir="ltr" className="text-right text-muted-foreground text-sm mt-2">{a.phone_number||a.phone_number_id}</p><div className="border-t border-border mt-5 pt-4 space-y-3 text-sm"><div className="flex justify-between"><span className="text-muted-foreground">الحالة المسجلة</span><span>{a.status==="connected"||a.status==="active"?"متصل":a.status==="pending"?"بانتظار الربط":a.status}</span></div><p className="text-xs text-muted-foreground break-all">Phone ID: {a.phone_number_id}</p><Button asChild variant="outline" className="w-full"><Link to={`/add-number?id=${a.id}`}><Pencil/> تعديل البيانات</Link></Button></div></article>)}</div></DataState></>;}

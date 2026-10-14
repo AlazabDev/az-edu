@@ -35,7 +35,6 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
             <Route
               path="*"
               element={
@@ -43,6 +42,7 @@ const App = () => (
                   <AppLayout>
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
+                      <Route path="/inbox" element={<InboxPage />} />
                       <Route path="/contacts" element={<ContactsPage />} />
                       <Route path="/media" element={<MediaPage />} />
                       <Route path="/conversations" element={<ConversationsPage />} />
