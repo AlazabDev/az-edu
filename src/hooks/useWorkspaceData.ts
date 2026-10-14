@@ -7,7 +7,17 @@ export function useWorkspaceData<T extends "contacts" | "conversations" | "messa
   const { user } = useAuth();
   return useQuery({ queryKey: [table, user?.id], enabled: !!user, queryFn: async () => {
     if (!user) return [] as Tables<T>[];
-    const { data, error } = await supabase.from(table).select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    const query = (() => {
+      switch (table) {
+        case "contacts": return supabase.from("contacts").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        case "conversations": return supabase.from("conversations").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        case "messages": return supabase.from("messages").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        case "media_files": return supabase.from("media_files").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        case "whatsapp_accounts": return supabase.from("whatsapp_accounts").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+      }
+    })();
+    if (!query) return [] as Tables<T>[];
+    const { data, error } = await query;
     if (error) throw error;
     return data as unknown as Tables<T>[];
   }});
