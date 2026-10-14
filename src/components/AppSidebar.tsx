@@ -19,6 +19,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 const navSections = [
@@ -39,7 +40,7 @@ const navSections = [
         expandable: true,
       },
       { label: "ويبهوكس", icon: Webhook, path: "/webhooks" },
-      { label: "مفاتيح واجهة برمجة التطبيقات", icon: Key, path: "/api-keys" },
+      { label: "مفاتيح API", icon: Key, path: "/api-keys" },
       { label: "تدفقات واتساب", icon: MessageSquare, path: "/flows" },
       { label: "القوالب", icon: FileText, path: "/templates" },
     ],
@@ -49,7 +50,7 @@ const navSections = [
     items: [
       { label: "المحادثات", icon: MessageSquare, path: "/conversations" },
       { label: "الرسائل", icon: Mail, path: "/messages" },
-      { label: "الإعلام", icon: Image, path: "/media" },
+      { label: "الوسائط", icon: Image, path: "/media" },
       { label: "جهات الاتصال", icon: Users, path: "/contacts" },
     ],
   },
@@ -64,9 +65,10 @@ const bottomItems = [
 interface AppSidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  onNavigate?: () => void;
 }
 
-export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarProps) {
+export default function AppSidebar({ collapsed = false, onToggle, onNavigate }: AppSidebarProps) {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -89,17 +91,17 @@ export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarPr
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         {!collapsed && (
-          <span className="font-bold text-foreground text-sm">نظام الإدارة</span>
+          <span className="font-bold text-foreground text-sm">واتساب أعمال</span>
         )}
-        <button
-          onClick={onToggle}
+        <Button
+          variant="ghost" size="icon" aria-label="طي القائمة" onClick={onToggle}
           className="p-1 rounded hover:bg-muted text-muted-foreground"
         >
           <ChevronLeft
             size={18}
             className={`transition-transform ${collapsed ? "rotate-180" : ""}`}
           />
-        </button>
+        </Button>
       </div>
 
       {/* Navigation */}
@@ -115,6 +117,7 @@ export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarPr
               <div key={item.label}>
                 <Link
                   to={item.path}
+                  onClick={onNavigate}
                   className={`flex items-center gap-3 px-4 py-2 mx-2 rounded-md text-sm transition-colors ${
                     isActive(item.path)
                       ? "bg-accent text-accent-foreground font-medium"
@@ -149,6 +152,7 @@ export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarPr
           <Link
             key={item.label}
             to={item.path}
+                  onClick={onNavigate}
             className={`flex items-center gap-3 px-4 py-2 mx-2 rounded-md text-sm transition-colors text-sidebar-foreground hover:bg-muted ${
               collapsed ? "justify-center" : ""
             }`}
@@ -166,9 +170,9 @@ export default function AppSidebar({ collapsed = false, onToggle }: AppSidebarPr
           {!collapsed && (
             <>
               <span className="text-xs text-foreground truncate flex-1">{user?.email}</span>
-              <button onClick={signOut} title="تسجيل الخروج" className="text-muted-foreground hover:text-destructive">
+              <Button variant="ghost" size="icon" onClick={signOut} title="تسجيل الخروج" className="text-muted-foreground hover:text-destructive">
                 <LogOut size={16} />
-              </button>
+              </Button>
             </>
           )}
         </div>

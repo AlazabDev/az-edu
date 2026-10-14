@@ -1,45 +1,14 @@
-import { Phone, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
-
-export default function AddNumberPage() {
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="p-2 rounded-lg hover:bg-muted transition-colors">
-          <ArrowLeft size={18} className="text-muted-foreground" />
-        </Link>
-        <h1 className="text-2xl font-bold text-foreground">إضافة رقم جديد</h1>
-      </div>
-
-      <div className="bg-card rounded-xl border border-border p-6 space-y-5">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-          <Phone size={28} className="text-primary" />
-        </div>
-        <p className="text-center text-muted-foreground text-sm">أضف رقم واتساب أعمال جديد لربطه بالنظام</p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">اسم الرقم</label>
-            <input className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm" placeholder="مثال: رقم المبيعات" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">رقم الهاتف</label>
-            <input className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono" dir="ltr" placeholder="+966XXXXXXXXX" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">معرف حساب واتساب أعمال (WABA ID)</label>
-            <input className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono" dir="ltr" placeholder="XXXXXXXXXXXXXXXXX" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">رمز الوصول (Access Token)</label>
-            <input type="password" className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm" placeholder="••••••••••••••••" />
-          </div>
-        </div>
-
-        <button className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-          ربط الرقم
-        </button>
-      </div>
-    </div>
-  );
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Save, ArrowRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useWorkspaceData } from "@/hooks/useWorkspaceData";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { PageHeading, fieldClass } from "@/components/WorkspaceUI";
+import { Button } from "@/components/ui/button";
+export default function AddNumberPage(){const {user}=useAuth(); const q=useWorkspaceData("whatsapp_accounts"); const [params]=useSearchParams();const id=params.get("id");const nav=useNavigate();const qc=useQueryClient();const [busy,setBusy]=useState(false);const [form,setForm]=useState({display_name:"",phone_number:"",phone_number_id:"",waba_id:""});useEffect(()=>{const a=q.data?.find(a=>a.id===id);if(a)setForm({display_name:a.display_name,phone_number:a.phone_number??"",phone_number_id:a.phone_number_id,waba_id:a.waba_id??""});},[q.data,id]);
+ async function submit(e:React.FormEvent){e.preventDefault();if(!user)return;setBusy(true);try{const payload={...form,user_id:user.id};const result=id?await supabase.from("whatsapp_accounts").update(payload).eq("id",id).eq("user_id",user.id):await supabase.from("whatsapp_accounts").insert({...payload,status:"pending"});if(result.error)throw result.error;await qc.invalidateQueries({queryKey:["whatsapp_accounts"]});toast.success("تم حفظ بيانات الرقم؛ اتصال Meta لم يتم تفعيله");nav("/phones");}catch{toast.error("تعذر حفظ الرقم. تحقق من البيانات وصلاحيات حسابك.");}finally{setBusy(false);}}
+ return <div className="max-w-2xl mx-auto"><PageHeading title={id?"تعديل الرقم":"إضافة رقم واتساب"} action={<Button variant="ghost" size="icon" aria-label="العودة" onClick={()=>nav("/phones")}><ArrowRight/></Button>}/><div className="border-r-2 border-warning bg-warning/10 p-4 text-sm mb-6">حفظ بيانات الرقم لا يفعّل اتصال Meta. استقبال الرسائل وإرسالها يحتاج استكمال الربط الآمن بالخدمة.</div><form onSubmit={submit} className="space-y-5">{[["display_name","اسم الرقم"],["phone_number","رقم الهاتف"],["phone_number_id","معرّف رقم الهاتف لدى Meta"],["waba_id","معرّف حساب واتساب أعمال"]].map(([key,label])=><label key={key} className="block text-sm space-y-2"><span>{label}</span><input required value={form[key as keyof typeof form]} onChange={e=>setForm({...form,[key]:e.target.value})} className={fieldClass} dir={key==="display_name"?"rtl":"ltr"}/></label>)}<Button disabled={busy} type="submit"><Save/>{busy?"جارٍ الحفظ…":"حفظ بيانات الرقم"}</Button></form></div>;
 }
