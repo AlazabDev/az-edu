@@ -4,20 +4,26 @@ import { Search, Eye, Phone as PhoneIcon, Plus, Loader2, Trash2 } from "lucide-r
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { DataState } from "@/components/WorkspaceUI";
+import { useNavigate } from "react-router-dom";
 
 export default function ContactsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [phone, setPhone] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [whatsappId, setWhatsappId] = useState("");
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts"],
+  const { data: contacts = [], isLoading, error, refetch } = useQuery({
+    queryKey: ["contacts", user?.id],
+    enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contacts").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("contacts").select("*").eq("user_id", user?.id ?? "").order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -44,7 +50,8 @@ export default function ContactsPage() {
       const { error } = await supabase.from("contacts").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("تم الحذف"); qc.invalidateQueries({ queryKey: ["contacts"] }); },
+    onSuccess: () => { toast.success("تم الحذف"); qc.invalidateQueries({ queryKey: ["contacts"] }); qc.invalidateQueries({ queryKey: ["conversations"] }); setSelectedId(null); },
+    onError: () => toast.error("تعذر حذف جهة الاتصال"),
   });
 
   const filtered = contacts.filter(
@@ -52,15 +59,15 @@ export default function ContactsPage() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground">جهات اتصال واتساب</h1>
-        <button
+        <Button
           onClick={() => setShowAdd(!showAdd)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
         >
           <Plus size={16} /> إضافة جهة اتصال
-        </button>
+        </Button>
       </div>
 
       {showAdd && (
@@ -71,10 +78,10 @@ export default function ContactsPage() {
             <input value={whatsappId} onChange={(e) => setWhatsappId(e.target.value)} placeholder="معرف واتساب" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm border border-border rounded-lg">إلغاء</button>
-            <button onClick={() => addMut.mutate()} disabled={!phone || addMut.isPending} className="px-4 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
+            <Button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm border border-border rounded-lg">إلغاء</Button>
+            <Button onClick={() => addMut.mutate()} disabled={!phone || addMut.isPending} className="px-4 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground disabled:opacity-50">
               {addMut.isPending ? "..." : "حفظ"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -88,7 +95,7 @@ export default function ContactsPage() {
         />
       </div>
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <DataState error={error} retry={()=>refetch()}><div className="bg-card rounded-lg border border-border overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (
@@ -118,8 +125,8 @@ export default function ContactsPage() {
                   <td className="p-3 text-muted-foreground text-xs">{new Date(c.created_at).toLocaleDateString("ar-EG")}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
-                      <button className="text-muted-foreground hover:text-foreground"><Eye size={16} /></button>
-                      <button onClick={() => delMut.mutate(c.id)} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></button>
+                      <Button variant="ghost" size="icon" aria-label="عرض جهة الاتصال" onClick={()=>setSelectedId(c.id)}><Eye size={16} /></Button>
+                      <Button variant="ghost" size="icon" aria-label="حذف جهة الاتصال" onClick={() => {if(window.confirm("حذف جهة الاتصال ومحادثاتها المرتبطة؟"))delMut.mutate(c.id);}} className="text-muted-foreground hover:text-destructive"><Trash2 size={16} /></Button>
                     </div>
                   </td>
                 </tr>
@@ -127,7 +134,8 @@ export default function ContactsPage() {
             </tbody>
           </table>
         )}
-      </div>
+      </div></DataState>
+      {selectedId && <div className="mt-5 border-t border-border pt-5"><h2 className="font-semibold">{contacts.find(c=>c.id===selectedId)?.display_name||"جهة اتصال"}</h2><p className="text-sm text-muted-foreground mt-2">{contacts.find(c=>c.id===selectedId)?.phone}</p><Button variant="outline" className="mt-3" onClick={async()=>{if(!user)return;const {data:existing,error:findError}=await supabase.from("conversations").select("id").eq("contact_id",selectedId).eq("user_id",user.id).limit(1);if(findError){toast.error("تعذر فتح المحادثة");return;}if(existing?.[0]){navigate(`/inbox?conversation=${existing[0].id}`);return;}const {data,error}=await supabase.from("conversations").insert({contact_id:selectedId,user_id:user.id,account_id:contacts.find(c=>c.id===selectedId)?.account_id??null}).select("id").single();if(error){toast.error("تعذر إنشاء المحادثة");return;}qc.invalidateQueries({queryKey:["conversations"]});navigate(`/inbox?conversation=${data.id}`);}}>فتح المحادثة</Button><Button variant="ghost" className="mt-3" onClick={()=>setSelectedId(null)}>إغلاق</Button></div>}
     </div>
   );
 }

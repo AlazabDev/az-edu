@@ -1,55 +1,7 @@
-import { HelpCircle, MessageCircle, Mail, Phone } from "lucide-react";
-
-export default function HelpPage() {
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">المساعدة والدعم</h1>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="bg-card rounded-xl border border-border p-5 text-center">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-            <MessageCircle size={20} className="text-primary" />
-          </div>
-          <h3 className="font-medium text-foreground mb-1">الدردشة المباشرة</h3>
-          <p className="text-sm text-muted-foreground mb-3">تحدث مع فريق الدعم مباشرة</p>
-          <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors">ابدأ محادثة</button>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-5 text-center">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-            <Mail size={20} className="text-primary" />
-          </div>
-          <h3 className="font-medium text-foreground mb-1">البريد الإلكتروني</h3>
-          <p className="text-sm text-muted-foreground mb-3">أرسل لنا استفسارك</p>
-          <button className="w-full py-2 rounded-lg border border-border text-foreground text-sm hover:bg-muted transition-colors">support@example.com</button>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-5 text-center">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-            <Phone size={20} className="text-primary" />
-          </div>
-          <h3 className="font-medium text-foreground mb-1">الهاتف</h3>
-          <p className="text-sm text-muted-foreground mb-3">اتصل بنا</p>
-          <button className="w-full py-2 rounded-lg border border-border text-foreground text-sm hover:bg-muted transition-colors" dir="ltr">+966 XX XXX XXXX</button>
-        </div>
-      </div>
-
-      <div className="bg-card rounded-xl border border-border p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">الأسئلة الشائعة</h2>
-        <div className="space-y-3">
-          {[
-            { q: "كيف أربط رقم واتساب أعمال؟", a: "اذهب إلى صفحة 'أضف رقماً جديداً' وأدخل بيانات حسابك." },
-            { q: "ما هي حدود إرسال الرسائل؟", a: "تعتمد الحدود على مستوى حسابك وجودة الرقم." },
-            { q: "كيف أنشئ قالب رسالة؟", a: "اذهب إلى صفحة القوالب واضغط على 'إنشاء قالب'." },
-          ].map((faq) => (
-            <details key={faq.q} className="group">
-              <summary className="flex items-center gap-2 cursor-pointer py-2 text-sm font-medium text-foreground hover:text-primary transition-colors">
-                <HelpCircle size={14} className="text-primary shrink-0" />
-                {faq.q}
-              </summary>
-              <p className="pr-6 pb-2 text-sm text-muted-foreground">{faq.a}</p>
-            </details>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Search, ArrowUpLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeading, fieldClass } from "@/components/WorkspaceUI";
+const faqs=[{q:"هل حفظ الرقم يفعّل واتساب؟",a:"لا. حفظ بيانات الرقم لا يكفي؛ استقبال الرسائل وإرسالها يحتاج استكمال اتصال Meta الآمن."},{q:"لماذا لا تظهر المحادثات؟",a:"تظهر البيانات المسجلة في حسابك فقط. تحقق من الحساب المختار، ومن وجود محادثات مسجلة ومن صلاحيات الوصول."},{q:"أين تحفظ القوالب والتدفقات؟",a:"تحفظ كمسودات في هذا المتصفح فقط. لا تُرسل إلى Meta ولا تعمل تلقائياً. يمكنك تنزيل نسخة منها قبل تغيير المتصفح."},{q:"هل حُذفت الملفات من MinIO؟",a:"هذه الواجهة تعرض الملفات المسجلة فقط. لا تنفذ حذفاً من MinIO ولا تسحب ملفات واتساب القديمة."}];
+export default function HelpPage(){const [search,setSearch]=useState("");return <div className="max-w-3xl"><PageHeading title="مركز المساعدة"/><div className="relative mb-8"><Search className="absolute right-3 top-3 text-muted-foreground" size={18}/><input aria-label="بحث في المساعدة" className={`${fieldClass} pr-10`} placeholder="ابحث عن سؤال…" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="divide-y divide-border border-y border-border">{faqs.filter(f=>`${f.q} ${f.a}`.includes(search)).map(f=><details key={f.q} className="py-5"><summary className="cursor-pointer font-medium text-sm">{f.q}</summary><p className="text-sm text-muted-foreground mt-3 leading-7">{f.a}</p></details>)}</div><Button asChild variant="outline" className="mt-6"><Link to="/docs">الوثائق الرسمية <ArrowUpLeft/></Link></Button></div>;}

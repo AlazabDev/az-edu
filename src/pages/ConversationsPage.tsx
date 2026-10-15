@@ -3,23 +3,29 @@ import { useQuery } from "@tanstack/react-query";
 import { MessageSquare, Search, MoreVertical, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { DataState } from "@/components/WorkspaceUI";
 
 const statusMap: Record<string, { label: string; cls: string }> = {
   active: { label: "نشط", cls: "bg-primary/20 text-primary" },
-  pending: { label: "معلق", cls: "bg-yellow-500/20 text-yellow-600" },
+  pending: { label: "معلق", cls: "bg-warning/20 text-warning" },
   closed: { label: "مغلق", cls: "bg-muted text-muted-foreground" },
 };
 
 export default function ConversationsPage() {
+  const {user}=useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
 
-  const { data: convs = [], isLoading } = useQuery({
-    queryKey: ["conversations"],
+  const { data: convs = [], isLoading, error, refetch } = useQuery({
+    queryKey: ["conversations", user?.id],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("conversations")
         .select("*, contacts(phone, display_name, whatsapp_id)")
+        .eq("user_id",user?.id??"")
         .order("last_message_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
       return data;
@@ -34,13 +40,13 @@ export default function ConversationsPage() {
   });
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">المحادثات</h1>
         <span className="text-sm text-muted-foreground">{convs.length} محادثة</span>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -49,15 +55,15 @@ export default function ConversationsPage() {
             value={search} onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[["all", "الكل"], ["active", "نشط"], ["pending", "معلق"], ["closed", "مغلق"]].map(([v, l]) => (
-            <button key={v} onClick={() => setFilter(v)}
-              className={`px-3 py-2 rounded-lg text-sm ${filter === v ? "bg-primary text-primary-foreground" : "bg-card border border-border hover:bg-muted"}`}>{l}</button>
+            <Button variant="outline" key={v} onClick={() => setFilter(v)}
+              className={`px-3 py-2 rounded-lg text-sm ${filter === v ? "bg-primary text-primary-foreground" : "bg-card border border-border hover:bg-muted"}`}>{l}</Button>
           ))}
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <DataState error={error} retry={()=>refetch()}><div className="bg-card rounded-lg border border-border overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (
@@ -99,14 +105,14 @@ export default function ConversationsPage() {
                     <span className={`px-2 py-1 rounded-full text-xs ${statusMap[c.status]?.cls}`}>{statusMap[c.status]?.label}</span>
                   </td>
                   <td className="p-3">
-                    <Link to="/inbox" className="text-primary text-xs hover:underline">فتح</Link>
+                    <Link to={`/inbox?conversation=${c.id}`} className="text-primary text-xs hover:underline">فتح</Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+      </div></DataState>
     </div>
   );
 }
