@@ -1,32 +1,4 @@
 import { BookOpen, ExternalLink } from "lucide-react";
-
-const docs = [
-  { title: "البدء السريع", description: "دليل سريع لإعداد حساب واتساب أعمال", link: "#" },
-  { title: "إرسال الرسائل", description: "كيفية إرسال رسائل نصية ووسائط متعددة", link: "#" },
-  { title: "القوالب", description: "إنشاء وإدارة قوالب الرسائل", link: "#" },
-  { title: "الويبهوكس", description: "استقبال الإشعارات والأحداث", link: "#" },
-  { title: "واجهة برمجة التطبيقات", description: "مرجع API الكامل", link: "#" },
-  { title: "التدفقات", description: "أتمتة المحادثات والردود", link: "#" },
-];
-
-export default function DocsPage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">الوثائق</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {docs.map((doc) => (
-          <a key={doc.title} href={doc.link} className="bg-card rounded-xl border border-border p-5 hover:shadow-md transition-shadow group">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BookOpen size={18} className="text-primary" />
-              </div>
-              <ExternalLink size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <h3 className="font-medium text-foreground mb-1">{doc.title}</h3>
-            <p className="text-sm text-muted-foreground">{doc.description}</p>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { PageHeading } from "@/components/WorkspaceUI";
+const docs=[{title:"البدء السريع",link:"https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"},{title:"إرسال الرسائل",link:"https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages"},{title:"قوالب الرسائل",link:"https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates"},{title:"ويبهوكس",link:"https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks"},{title:"مرجع API",link:"https://developers.facebook.com/docs/whatsapp/cloud-api/reference"},{title:"تدفقات واتساب",link:"https://developers.facebook.com/docs/whatsapp/flows"}];
+export default function DocsPage(){return <><PageHeading title="الوثائق" subtitle="مراجع Meta الرسمية"/><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{docs.map(d=><a key={d.title} href={d.link} target="_blank" rel="noreferrer" className="bg-card border border-border rounded-lg p-6 hover:border-primary transition-colors"><div className="flex justify-between mb-6"><BookOpen className="text-primary"/><ExternalLink size={16} className="text-muted-foreground"/></div><h2 className="font-semibold">{d.title}</h2><p className="text-xs text-muted-foreground mt-2">Meta for Developers</p></a>)}</div></>;}
