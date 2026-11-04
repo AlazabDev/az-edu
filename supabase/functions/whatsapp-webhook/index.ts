@@ -152,16 +152,10 @@ async function handleInbound(value: ChangeValue) {
     const now = new Date().toISOString();
     await admin
       .from("conversations")
-      .update({
-        last_message_at: now,
-        status: "active",
-        unread_count: (await admin.from("conversations").select("unread_count").eq("id", convId).single()).data?.unread_count
-          ? undefined
-          : undefined,
-      })
+      .update({ last_message_at: now, status: "active" })
       .eq("id", convId);
     // Increment unread atomically.
-    await admin.rpc("increment_unread", { p_conversation_id: convId }).catch?.(() => {});
+    await admin.rpc("increment_unread", { p_conversation_id: convId });
   }
 }
 
