@@ -204,16 +204,17 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (!expected || (headerKey !== expected && bearer !== expected && urlKey !== expected))
     return response({ error: "Unauthorized" }, 401);
 
-  if (request.method === "GET") {
+    if (request.method === "GET") {
     return response({
       name: "magicplan-mcp",
-      version,
+      version: VERSION,
       upstream: "magicplan Cloud API v2",
       operations: OPERATIONS.length,
       modules: [...new Set(OPERATIONS.map((o) => o.module))],
       tools: TOOLS.map((tool) => tool.name),
     });
   }
+  
   if (request.method !== "POST") return response({ error: "Method Not Allowed" }, 405);
 
   let payload: unknown;
