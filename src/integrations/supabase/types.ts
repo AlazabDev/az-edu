@@ -470,6 +470,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_unread: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
